@@ -1,7 +1,6 @@
 /*
  * ╔══════════════════════════════════════════════════════════════╗
  * ║                      D E C R Y P T I C A L                   ║
- * ║         Cifrado AES-256-GCM + Análisis de Frecuencias        ║
  * ╚══════════════════════════════════════════════════════════════╝
  *
  * FUNDAMENTOS MATEMÁTICOS USADOS:
@@ -34,9 +33,9 @@
  *  8. PBKDF2-HMAC-SHA256 para derivar claves desde contraseñas:
  *     K = PRF(password, salt || i)  acumulado ITER veces.
  *
- * COMPILACIÓN (Arch Linux):
+ * COMANDOS DE COMPILACIÓN Y DEPENDENCIAS:
  *   sudo pacman -S openssl base-devel
- *   gcc -O2 -o decryptical decryptical.c -lssl -lcrypto -lm
+ *   gcc -O2 -o decryptical main.c -lssl -lcrypto -lm
  *
  * USO:
  *   ./decryptical encrypt  <archivo_entrada> <archivo_salida>
@@ -60,7 +59,7 @@
 #include <openssl/err.h>
 #include <openssl/sha.h>
 
-/* ────────────────── CONSTANTES ────────────────── */
+/* CONSTANTES */
 #define SALT_LEN        32          /* bytes de sal aleatoria       */
 #define IV_LEN          12          /* bytes de IV para GCM (96 bit)*/
 #define TAG_LEN         16          /* bytes de etiqueta GCM        */
@@ -71,7 +70,7 @@
 #define MAX_FILE_MB     512         /* límite seguro de lectura     */
 #define CHUNK           65536       /* bytes por bloque de cifrado  */
 
-/* ────────────────── COLORES ANSI ────────────────── */
+/* COLORES ANSI */
 #define C_RESET   "\x1b[0m"
 #define C_BOLD    "\x1b[1m"
 #define C_RED     "\x1b[31m"
@@ -80,7 +79,7 @@
 #define C_CYAN    "\x1b[36m"
 #define C_MAGENTA "\x1b[35m"
 
-/* ────────────────── PROTOTIPOS ────────────────── */
+/* PROTOTIPOS */
 static void      print_banner(void);
 static void      print_help(void);
 static void      print_math_notes(void);
@@ -99,9 +98,6 @@ static void      entropy_estimate(const uint8_t *data, size_t len);
 static void      openssl_die(const char *msg);
 static uint8_t  *read_file(const char *path, size_t *outlen);
 
-/* ════════════════════════════════════════════════════════
-   M A I N
-   ════════════════════════════════════════════════════════ */
 int main(int argc, char *argv[])
 {
     print_banner();
@@ -150,22 +146,21 @@ int main(int argc, char *argv[])
     }
 }
 
-/* ════════════════════════════════════════════════════════
+/* 
    CIFRADO DE ARCHIVO
-   ════════════════════════════════════════════════════════
    Formato del archivo .dcal:
    ┌──────────────────────────────────────────────────────┐
-   │ [MAGIC 5B][SALT 32B][IV 12B][TAG 16B][CIPHERTEXT...]│
+   │ [MAGIC 5B][SALT 32B][IV 12B][TAG 16B][CIPHERTEXT...] │
    └──────────────────────────────────────────────────────┘
 */
 static int encrypt_file(const char *inpath, const char *outpath)
 {
     printf(C_CYAN "\n  ▶  Modo: CIFRADO DE ARCHIVO\n" C_RESET);
     printf("  ┌─ Entrada : %s\n", inpath);
-    printf("  └─ Salida  : %s\n\n", outpath);
+    printf("  └─ Salida  : %s\n\n", outpath); // el estilo................ lo es todo
 
     /* ── 1. Leer archivo fuente ── */
-    size_t plainlen;
+    size_t plainlen; // amo como clang te lo explica todo
     uint8_t *plaintext = read_file(inpath, &plainlen);
     if (!plaintext) return 1;
     printf("  Tamaño del archivo  : %zu bytes\n", plainlen);
@@ -173,18 +168,18 @@ static int encrypt_file(const char *inpath, const char *outpath)
     /* ── 2. Solicitar contraseña ── */
     char password[256];
     get_password(password, sizeof(password),
-                 "  Ingresa contraseña (Enter para clave aleatoria): ");
+                 "  Ingresa contraseña (Enter para clave aleatoria): "); // mejor paso... rng te amo
 
     /* ── 3. Generar sal e IV aleatorios ── */
     uint8_t salt[SALT_LEN], iv[IV_LEN];
-    if (RAND_bytes(salt, SALT_LEN) != 1) openssl_die("RAND_bytes salt");
+    if (RAND_bytes(salt, SALT_LEN) != 1) openssl_die("RAND_bytes salt"); //que extraños nombres son sal e iv...
     if (RAND_bytes(iv,   IV_LEN)   != 1) openssl_die("RAND_bytes iv");
 
     /* ── 4. Si no hay contraseña, generar clave aleatoria directa ── */
     uint8_t key[KEY_LEN];
     int random_key = (strlen(password) == 0);
     if (random_key) {
-        if (RAND_bytes(key, KEY_LEN) != 1) openssl_die("RAND_bytes key");
+        if (RAND_bytes(key, KEY_LEN) != 1) openssl_die("RAND_bytes key"); // gracias openssl!!!
     } else {
         derive_key((uint8_t*)password, strlen(password), salt, key);
     }
@@ -239,7 +234,7 @@ static int encrypt_file(const char *inpath, const char *outpath)
                "\n  ┌─────────────────────────────────────────┐\n"
                "  │          ⚠  CLAVE DE CIFRADO            │\n"
                "  │  (Guarda esto — sin ella no hay acceso) │\n"
-               "  └─────────────────────────────────────────┘\n" C_RESET);
+               "  └─────────────────────────────────────────┘\n" C_RESET); // rng!!!!!!!!
         hex_print("  CLAVE (KEY)    ", key, KEY_LEN);
     } else {
         printf(C_YELLOW "\n  La clave fue derivada de tu contraseña\n"
@@ -251,9 +246,6 @@ static int encrypt_file(const char *inpath, const char *outpath)
     return 0;
 }
 
-/* ════════════════════════════════════════════════════════
-   DESCIFRADO DE ARCHIVO
-   ════════════════════════════════════════════════════════ */
 static int decrypt_file(const char *inpath, const char *outpath)
 {
     printf(C_CYAN "\n  ▶  Modo: DESCIFRADO DE ARCHIVO\n" C_RESET);
@@ -363,9 +355,6 @@ static int decrypt_file(const char *inpath, const char *outpath)
     return 0;
 }
 
-/* ════════════════════════════════════════════════════════
-   CIFRADO DE TEXTO (modo interactivo)
-   ════════════════════════════════════════════════════════ */
 static int encrypt_text(const char *plaintext)
 {
     printf(C_CYAN "\n  ▶  Modo: CIFRADO DE TEXTO\n" C_RESET);
@@ -414,15 +403,6 @@ static int encrypt_text(const char *plaintext)
     return 0;
 }
 
-/* ════════════════════════════════════════════════════════
-   ANÁLISIS CRIPTOGRÁFICO
-   ════════════════════════════════════════════════════════
-   Aplica herramientas matemáticas para detectar cifrados débiles:
-   - Índice de Coincidencia de Friedman
-   - Distancia de Hamming normalizada
-   - Entropía de Shannon
-   - Estimación de longitud de clave (método Kasiski/Hamming)
-*/
 static int analyze_file(const char *path)
 {
     printf(C_CYAN "\n  ▶  Modo: ANÁLISIS CRIPTOGRÁFICO\n" C_RESET);
@@ -473,9 +453,9 @@ static int analyze_file(const char *path)
     return 0;
 }
 
-/* ════════════════════════════════════════════════════════
+/*
    DERIVACIÓN DE CLAVE — PBKDF2-HMAC-SHA256
-   ════════════════════════════════════════════════════════
+
    K = T_1 || T_2 || …  donde T_i = Σ_{j=1}^{c} PRF(pass, salt||i)_j
    Función estándar NIST SP 800-132
 */
@@ -491,9 +471,9 @@ static void derive_key(const uint8_t *pass, size_t passlen,
     printf("  Clave derivada con éxito.\n");
 }
 
-/* ════════════════════════════════════════════════════════
+/* 
    ÍNDICE DE COINCIDENCIA DE FRIEDMAN
-   ════════════════════════════════════════════════════════
+
    IC = Σ_{i=0}^{255} f_i*(f_i - 1) / (N*(N-1))
    
    Interpreta qué tan uniforme es la distribución de bytes.
@@ -510,9 +490,9 @@ static double friedman_ic(const uint8_t *data, size_t len)
     return ic;
 }
 
-/* ════════════════════════════════════════════════════════
+/* 
    DISTANCIA DE HAMMING NORMALIZADA
-   ════════════════════════════════════════════════════════
+
    d_H(a,b) = número de bits distintos entre a y b
    normalizado dividiendo por (n * 8)
 */
@@ -527,9 +507,9 @@ static double hamming_distance_norm(const uint8_t *a, const uint8_t *b, size_t n
     return (double)bits / (double)(n * 8);
 }
 
-/* ════════════════════════════════════════════════════════
+/* 
    ESTIMACIÓN DE LONGITUD DE CLAVE (MÉTODO HAMMING)
-   ════════════════════════════════════════════════════════
+   
    Para cada longitud candidata k, compara bloques adyacentes
    de k bytes con distancia de Hamming. La longitud con la
    menor distancia normalizada es la más probable.
@@ -553,9 +533,9 @@ static size_t estimate_key_length(const uint8_t *data, size_t len, size_t maxkl)
     return best_kl;
 }
 
-/* ════════════════════════════════════════════════════════
+/* 
    ENTROPÍA DE SHANNON
-   ════════════════════════════════════════════════════════
+   
    H(X) = -Σ p(x) · log2(p(x))   (bits por símbolo)
    Máximo para bytes: H = 8 bits (distribución uniforme)
 */
@@ -581,9 +561,6 @@ static void entropy_estimate(const uint8_t *data, size_t len)
         printf("  → " C_YELLOW "Entropía media → revisar con IC.\n" C_RESET);
 }
 
-/* ════════════════════════════════════════════════════════
-   UTILIDADES
-   ════════════════════════════════════════════════════════ */
 
 static void hex_print(const char *label, const uint8_t *buf, size_t len)
 {
@@ -631,9 +608,6 @@ static void openssl_die(const char *msg)
     exit(1);
 }
 
-/* ════════════════════════════════════════════════════════
-   BANNER Y AYUDA
-   ════════════════════════════════════════════════════════ */
 static void print_banner(void)
 {
     printf(C_MAGENTA C_BOLD
@@ -645,7 +619,7 @@ static void print_banner(void)
 "  ██████╔╝███████╗╚██████╗██║  ██║   ██║   ██║        ██║   ██║╚██████╗██║  ██║███████╗\n"
 "  ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝   ╚═╝   ╚═╝        ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝\n"
 C_RESET
-"                    " C_CYAN "AES-256-GCM · PBKDF2-SHA256 · Campo de Galois GF(2⁸)" C_RESET "\n\n");
+"           " C_CYAN "profe: si ve esto, me tiene que eximir del exámen de cálculo" C_RESET "\n\n");
 }
 
 static void print_help(void)
