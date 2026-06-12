@@ -453,12 +453,6 @@ static int analyze_file(const char *path)
     return 0;
 }
 
-/*
-   DERIVACIÓN DE CLAVE — PBKDF2-HMAC-SHA256
-
-   K = T_1 || T_2 || …  donde T_i = Σ_{j=1}^{c} PRF(pass, salt||i)_j
-   Función estándar NIST SP 800-132
-*/
 static void derive_key(const uint8_t *pass, size_t passlen,
                        const uint8_t *salt, uint8_t *key)
 {
@@ -471,14 +465,6 @@ static void derive_key(const uint8_t *pass, size_t passlen,
     printf("  Clave derivada con éxito.\n");
 }
 
-/* 
-   ÍNDICE DE COINCIDENCIA DE FRIEDMAN
-
-   IC = Σ_{i=0}^{255} f_i*(f_i - 1) / (N*(N-1))
-   
-   Interpreta qué tan uniforme es la distribución de bytes.
-   Para distribución totalmente uniforme: IC = 1/256 ≈ 0.00390
-*/
 static double friedman_ic(const uint8_t *data, size_t len)
 {
     size_t freq[256] = {0};
@@ -490,12 +476,6 @@ static double friedman_ic(const uint8_t *data, size_t len)
     return ic;
 }
 
-/* 
-   DISTANCIA DE HAMMING NORMALIZADA
-
-   d_H(a,b) = número de bits distintos entre a y b
-   normalizado dividiendo por (n * 8)
-*/
 static double hamming_distance_norm(const uint8_t *a, const uint8_t *b, size_t n)
 {
     size_t bits = 0;
@@ -507,13 +487,6 @@ static double hamming_distance_norm(const uint8_t *a, const uint8_t *b, size_t n
     return (double)bits / (double)(n * 8);
 }
 
-/* 
-   ESTIMACIÓN DE LONGITUD DE CLAVE (MÉTODO HAMMING)
-   
-   Para cada longitud candidata k, compara bloques adyacentes
-   de k bytes con distancia de Hamming. La longitud con la
-   menor distancia normalizada es la más probable.
-*/
 static size_t estimate_key_length(const uint8_t *data, size_t len, size_t maxkl)
 {
     double best_dist = 1.0;
@@ -533,12 +506,6 @@ static size_t estimate_key_length(const uint8_t *data, size_t len, size_t maxkl)
     return best_kl;
 }
 
-/* 
-   ENTROPÍA DE SHANNON
-   
-   H(X) = -Σ p(x) · log2(p(x))   (bits por símbolo)
-   Máximo para bytes: H = 8 bits (distribución uniforme)
-*/
 static void entropy_estimate(const uint8_t *data, size_t len)
 {
     size_t freq[256] = {0};
@@ -560,7 +527,6 @@ static void entropy_estimate(const uint8_t *data, size_t len)
     else
         printf("  → " C_YELLOW "Entropía media → revisar con IC.\n" C_RESET);
 }
-
 
 static void hex_print(const char *label, const uint8_t *buf, size_t len)
 {
